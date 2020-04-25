@@ -1,8 +1,9 @@
-// import AppError from '../errors/AppError';
-
 import { getRepository } from 'typeorm';
+import AppError from '../errors/AppError';
+
 import Transaction from '../models/Transaction';
 import Category from '../models/Category';
+import TransactionsRepository from '../repositories/TransactionsRepository';
 
 interface Request {
   title: string;
@@ -32,7 +33,19 @@ class CreateTransactionService {
     const transactionRepository = getRepository(Transaction);
 
     if (type !== 'income' && type !== 'outcome') {
-      throw new Error('Only values income and outcome are allowed for type');
+      throw new AppError(
+        'Only values income and outcome are allowed for type',
+        400,
+      );
+    }
+
+    if (type === 'outcome') {
+      const transactionRepositoryApp = new TransactionsRepository();
+      const balanceValue = (await transactionRepositoryApp.getBalance(null))
+        .total;
+      if (balanceValue < value) {
+        throw new AppError('Outcome value is greater than balance value', 400);
+      }
     }
 
     const categoryFinded = await categoryRepository.findOne({
